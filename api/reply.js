@@ -1,22 +1,23 @@
 async function claude(system, user, maxTokens) {
-  const r = await fetch("https://api.aimlapi.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      Authorization: "Bearer " + process.env.AIML_API_KEY,
-    },
-    body: JSON.stringify({
-      model: "gpt-4o", // apne AIML dashboard ke models list se koi model ka naam lo
-      max_tokens: maxTokens,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-    }),
-  });
-  if (!r.ok) throw new Error("AIML error " + r.status);
+  const model = "gemini-flash-latest"; // AI Studio mein current Flash model ka naam dekh lena
+  const r = await fetch(
+    "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent",
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-goog-api-key": process.env.GEMINI_API_KEY,
+      },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: system }] },
+        contents: [{ role: "user", parts: [{ text: user }] }],
+        generationConfig: { maxOutputTokens: maxTokens },
+      }),
+    }
+  );
+  if (!r.ok) throw new Error("Gemini error " + r.status);
   const d = await r.json();
-  return d.choices[0].message.content.trim();
+  return d.candidates[0].content.parts.map((p) => p.text || "").join("").trim();
 }
 
 const ANALYZE = `You are an emotionally intelligent dating-chat coach. A guy pasted a message or chat from a girl he is talking to on a dating app.
