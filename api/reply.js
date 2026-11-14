@@ -1,9 +1,9 @@
 // Free models ki list: pehla model pehle try hoga, na chale to agla.
 // IDs openrouter.ai/models se copy karke yahan daalo (2 se 4 models kaafi hain).
 const MODELS = [
-  "model-id-1:free",
-  "model-id-2:free",
-  "model-id-3:free",
+  "ernie-ka-copy-kiya-hua-id:free",
+  "ling-ka-copy-kiya-hua-id:free",
+  "deepseek-ka-copy-kiya-hua-id",
 ];
 
 async function claude(system, user, maxTokens) {
