@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Reply Wingman</title>
+<style>
+:root{--bg:#fbf7f6;--card:#fff;--tx:#241a1c;--mu:#7a6b6e;--ac:#e0446a;--acx:#fff;--bd:#eadfe1}
+@media (prefers-color-scheme:dark){:root{--bg:#18110f;--card:#241a1c;--tx:#f6ecee;--mu:#a8979b;--ac:#ff6b8f;--acx:#2a0f17;--bd:#3a2b2e}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:560px;margin:0 auto;padding:calc(20px + env(safe-area-inset-top,0px)) 16px calc(40px + env(safe-area-inset-bottom,0px))}
+h1{font-size:24px;margin:8px 0 2px}
+.sub{color:var(--mu);margin:0 0 18px;font-size:14px}
+textarea{width:100%;min-height:130px;border:1px solid var(--bd);border-radius:14px;padding:12px;background:var(--card);color:var(--tx);font:inherit;resize:vertical;margin-bottom:12px}
+.go{width:100%;border:0;background:var(--ac);color:var(--acx);font:inherit;font-weight:600;padding:14px;border-radius:12px;cursor:pointer}
+.go:disabled{opacity:.6}
+.rep{background:var(--card);border:1px solid var(--bd);border-left:4px solid var(--ac);border-radius:14px;padding:14px;margin-top:16px}
+.msg{font-size:18px;margin:0 0 12px;white-space:pre-wrap}
+.row{display:flex;gap:8px}
+.cp{flex:1;border:1px solid var(--bd);background:transparent;color:var(--tx);border-radius:10px;padding:9px;font:inherit;font-size:14px;cursor:pointer}
+.err{color:var(--ac);font-size:14px;margin:10px 0 0}
+</style>
+</head>
+<body>
+<main>
+<h1>Reply Wingman ♥</h1>
+<p class="sub">Uska message paste karo, bas. Baaki main dekh lunga.</p>
+<textarea id="m" placeholder="Uska message ya poori chat yahan paste karo…"></textarea>
+<button class="go" id="go">Reply do</button>
+<p class="err" id="err"></p>
+<div id="out"></div>
+</main>
+<script>
+var go=document.getElementById("go"),err=document.getElementById("err"),out=document.getElementById("out"),last="";
+go.onclick=async function(){
+  var msg=document.getElementById("m").value.trim();
+  err.textContent="";
+  if(!msg){err.textContent="Pehle uska message paste karo.";return}
+  go.disabled=true;go.textContent="Mood samajh raha hoon…";out.innerHTML="";
+  try{
+    var r=await fetch("/api/reply",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:msg,last:last})});
+    var d=await r.json();
+    if(!r.ok||!d.reply)throw new Error(d.error||"error");
+    last=d.reply;show(d.reply);
+  }catch(e){err.textContent=e.message||"Kuch gadbad hui, dobara try karo."}
+  go.disabled=false;go.textContent="Reply do";
+};
+function show(t){
+  out.innerHTML="";
+  var c=document.createElement("div");c.className="rep";
+  var p=document.createElement("p");p.className="msg";p.textContent=t;
+  var row=document.createElement("div");row.className="row";
+  var k=document.createElement("button");k.className="cp";k.textContent="Copy";
+  k.onclick=function(){
+    try{navigator.clipboard.writeText(t).then(function(){k.textContent="Copied ✓"},function(){k.textContent="Select karke copy karo"})}
+    catch(e){k.textContent="Select karke copy karo"}
+  };
+  var n=document.createElement("button");n.className="cp";n.textContent="Dusra do";
+  n.onclick=function(){go.click()};
+  row.appendChild(k);row.appendChild(n);c.appendChild(p);c.appendChild(row);out.appendChild(c);
+}
+</script>
+</body>
+</html>
