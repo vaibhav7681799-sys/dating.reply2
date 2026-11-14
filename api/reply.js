@@ -1,23 +1,23 @@
 async function claude(system, user, maxTokens) {
-  const model = "gemini-flash-latest"; // AI Studio mein current Flash model ka naam dekh lena
-  const r = await fetch(
-    "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent",
-    {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-goog-api-key": process.env.GEMINI_API_KEY,
-      },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: system }] },
-        contents: [{ role: "user", parts: [{ text: user }] }],
-        generationConfig: { maxOutputTokens: maxTokens },
-      }),
-    }
-  );
-  if (!r.ok) throw new Error("Gemini error " + r.status);
+  const model = "openai/gpt-4o-mini"; // openrouter.ai/models se apna model ka naam copy karo
+  const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      Authorization: "Bearer " + process.env.OPENROUTER_API_KEY,
+    },
+    body: JSON.stringify({
+      model: model,
+      max_tokens: maxTokens,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+    }),
+  });
+  if (!r.ok) throw new Error("OpenRouter error " + r.status);
   const d = await r.json();
-  return d.candidates[0].content.parts.map((p) => p.text || "").join("").trim();
+  return d.choices[0].message.content.trim();
 }
 
 const ANALYZE = `You are an emotionally intelligent dating-chat coach. A guy pasted a message or chat from a girl he is talking to on a dating app.
