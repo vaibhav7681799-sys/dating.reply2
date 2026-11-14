@@ -7,6 +7,27 @@ const MODELS = [
 const PER_MODEL_MS = 25000; // ek model ko itna time milega
 const TOTAL_MS = 55000; // poori request ki hard limit (Vercel 60s tak chalne deta hai)
 
+async function callModel(model, system, user, maxTokens, timeoutMs, withReasoning) {
+  const payload = {
+    model: model,
+    max_tokens: maxTokens,
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: user },
+    ],
+  };
+  if (withReasoning) payload.reasoning = { enabled: false };
+  return fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      Authorization: "Bearer " + process.env.OPENROUTER_API_KEY,
+    },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+}
+
 async function claude(system, user, maxTokens, deadline) {
   const errors = [];
   for (const model of MODELS) {
@@ -16,23 +37,17 @@ async function claude(system, user, maxTokens, deadline) {
       break;
     }
     try {
-      const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          Authorization: "Bearer " + process.env.OPENROUTER_API_KEY,
-        },
-        body: JSON.stringify({
-          model: model,
-          max_tokens: maxTokens,
-          reasoning: { enabled: false },
-          messages: [
-            { role: "system", content: system },
-            { role: "user", content: user },
-          ],
-        }),
-        signal: AbortSignal.timeout(Math.min(PER_MODEL_MS, remaining - 1000)),
-      });
+      const t = Math.min(PER_MODEL_MS, remaining - 1000);
+      let r = await callModel(model, system, user, maxTokens, t, true);
+      if (r.status === 400) {
+        // model ko reasoning option pasand nahi, bina uske dobara try
+        const t2 = Math.min(PER_MODEL_MS, deadline - Date.now() - 1000);
+        if (t2 < 3000) {
+          errors.push(model + " -> 400");
+          continue;
+        }
+        r = await callModel(model, system, user, maxTokens, t2, false);
+      }
       if (!r.ok) {
         errors.push(model + " -> " + r.status);
         continue;
