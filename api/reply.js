@@ -1,5 +1,6 @@
+const MODEL = "openai/gpt-4o-mini"; // openrouter.ai/models se apna model ka naam copy karo
+
 async function claude(system, user, maxTokens) {
-  const model = "openai/gpt-4o-mini"; // openrouter.ai/models se apna model ka naam copy karo
   const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -7,7 +8,7 @@ async function claude(system, user, maxTokens) {
       Authorization: "Bearer " + process.env.OPENROUTER_API_KEY,
     },
     body: JSON.stringify({
-      model: model,
+      model: MODEL,
       max_tokens: maxTokens,
       messages: [
         { role: "system", content: system },
@@ -48,5 +49,7 @@ module.exports = async (req, res) => {
     );
     res.status(200).json({ reply: reply.replace(/^["“]|["”]$/g, "") });
   } catch (e) {
-    res.status(500).json({ error: "Kuch gadbad hui, dobara try karo." });
+    console.error(e);
+    res.status(500).json({ error: "Error: " + e.message });
   }
+};
