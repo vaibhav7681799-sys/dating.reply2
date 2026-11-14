@@ -1,13 +1,20 @@
-// Free models ki list: pehla model pehle try hoga, na chale to agla.
-// IDs openrouter.ai/models se copy karke yahan daalo (2 se 4 models kaafi hain).
+// Free models ki list: pehla model pehle try hoga, error aaye to agla.
 const MODELS = [
   "baidu/ernie-5.5-flash-preview:free",
   "inclusionai/ling-3.2-flash:free",
 ];
 
-async function claude(system, user, maxTokens) {
-  let lastErr = "no model";
+const PER_MODEL_MS = 25000; // ek model ko itna time milega
+const TOTAL_MS = 55000; // poori request ki hard limit (Vercel 60s tak chalne deta hai)
+
+async function claude(system, user, maxTokens, deadline) {
+  const errors = [];
   for (const model of MODELS) {
+    const remaining = deadline - Date.now();
+    if (remaining < 4000) {
+      errors.push("time khatam");
+      break;
+    }
     try {
       const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
@@ -18,26 +25,32 @@ async function claude(system, user, maxTokens) {
         body: JSON.stringify({
           model: model,
           max_tokens: maxTokens,
+          reasoning: { enabled: false },
           messages: [
             { role: "system", content: system },
             { role: "user", content: user },
           ],
         }),
-        signal: AbortSignal.timeout(8000), // 8 second mein jawab na aaye to agla model
+        signal: AbortSignal.timeout(Math.min(PER_MODEL_MS, remaining - 1000)),
       });
       if (!r.ok) {
-        lastErr = model + " -> " + r.status;
+        errors.push(model + " -> " + r.status);
         continue;
       }
       const d = await r.json();
-      const text = d.choices && d.choices[0] && d.choices[0].message.content;
+      const c = d.choices && d.choices[0];
+      if (c && c.finish_reason === "length") {
+        errors.push(model + " -> cut");
+        continue;
+      }
+      const text = c && c.message && c.message.content;
       if (text && text.trim()) return text.trim();
-      lastErr = model + " -> empty";
+      errors.push(model + " -> empty");
     } catch (e) {
-      lastErr = model + " -> " + e.message;
+      errors.push(model + " -> " + e.message);
     }
   }
-  throw new Error("Sab models fail: " + lastErr);
+  throw new Error("Sab models fail: " + errors.join(" | "));
 }
 
 const ANALYZE = `You are an emotionally intelligent dating-chat coach. A guy pasted a message or chat from a girl he is talking to on a dating app.
@@ -59,17 +72,19 @@ Return ONLY the final reply text. No quotes, no explanation.`;
 module.exports = async (req, res) => {
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
   try {
+    const deadline = Date.now() + TOTAL_MS;
     const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
     const message = String(body.message || "").trim().slice(0, 2000);
     const last = String(body.last || "").slice(0, 500);
     if (!message) return res.status(400).json({ error: "Message khali hai" });
 
-    const analysis = await claude(ANALYZE, "Her message / chat:\n" + message, 500);
+    const analysis = await claude(ANALYZE, "Her message / chat:\n" + message, 1500, deadline);
     const reply = await claude(
       WRITE,
       "Her message / chat:\n" + message + "\n\nAnalysis:\n" + analysis +
         (last ? "\n\nDo not repeat this earlier reply, write a different one:\n" + last : ""),
-      300
+      1000,
+      deadline
     );
     res.status(200).json({ reply: reply.replace(/^["“]|["”]$/g, "") });
   } catch (e) {
