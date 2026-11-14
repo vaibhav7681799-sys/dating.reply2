@@ -1,9 +1,8 @@
 // Free models ki list: pehla model pehle try hoga, na chale to agla.
 // IDs openrouter.ai/models se copy karke yahan daalo (2 se 4 models kaafi hain).
 const MODELS = [
-  "Baidu: ERNIE-5.5-Flash-Preview (free)",
-  "ling-ka-copy-kiya-hua-id:free",
-  "deepseek-ka-copy-kiya-hua-id",
+  "baidu/ernie-5.5-flash-preview:free",
+  "inclusionai/ling-3.2-flash:free",
 ];
 
 async function claude(system, user, maxTokens) {
