@@ -1,24 +1,44 @@
-const MODEL = "openai/gpt-4o-mini"; // openrouter.ai/models se apna model ka naam copy karo
+// Free models ki list: pehla model pehle try hoga, na chale to agla.
+// IDs openrouter.ai/models se copy karke yahan daalo (2 se 4 models kaafi hain).
+const MODELS = [
+  "model-id-1:free",
+  "model-id-2:free",
+  "model-id-3:free",
+];
 
 async function claude(system, user, maxTokens) {
-  const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      Authorization: "Bearer " + process.env.OPENROUTER_API_KEY,
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: maxTokens,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-    }),
-  });
-  if (!r.ok) throw new Error("OpenRouter error " + r.status);
-  const d = await r.json();
-  return d.choices[0].message.content.trim();
+  let lastErr = "no model";
+  for (const model of MODELS) {
+    try {
+      const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          Authorization: "Bearer " + process.env.OPENROUTER_API_KEY,
+        },
+        body: JSON.stringify({
+          model: model,
+          max_tokens: maxTokens,
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: user },
+          ],
+        }),
+        signal: AbortSignal.timeout(8000), // 8 second mein jawab na aaye to agla model
+      });
+      if (!r.ok) {
+        lastErr = model + " -> " + r.status;
+        continue;
+      }
+      const d = await r.json();
+      const text = d.choices && d.choices[0] && d.choices[0].message.content;
+      if (text && text.trim()) return text.trim();
+      lastErr = model + " -> empty";
+    } catch (e) {
+      lastErr = model + " -> " + e.message;
+    }
+  }
+  throw new Error("Sab models fail: " + lastErr);
 }
 
 const ANALYZE = `You are an emotionally intelligent dating-chat coach. A guy pasted a message or chat from a girl he is talking to on a dating app.
